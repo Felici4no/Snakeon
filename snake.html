@@ -13,6 +13,7 @@
             --cpu-color: #F44336;
             --fruit-color: #FFC107;
             --fruit-color: #FFC107;
+            --rank-color: #9C27B0;
             --font-family: 'Press Start 2P', cursive, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
@@ -98,8 +99,8 @@
             z-index: 10;
         }
 
-        #overlay.hidden {
-            display: none;
+        .hidden {
+            display: none !important;
         }
 
         button {
@@ -133,6 +134,26 @@
         }
 
         /* Menu Styles */
+        .menu-input {
+            width: 300px;
+            padding: 10px;
+            margin: 10px auto;
+            background: #222;
+            color: #fff;
+            border: 2px solid #555;
+            font-family: var(--font-family);
+            font-size: 0.9rem;
+            text-align: center;
+            text-transform: uppercase;
+            box-sizing: border-box;
+            display: block;
+        }
+
+        .menu-input:focus {
+            border-color: var(--accent-color);
+            outline: none;
+        }
+
         .menu-btn {
             display: block;
             width: 300px;
@@ -198,8 +219,11 @@
             <div id="status-msg" style="font-size: 1.5rem; color: var(--accent-color); margin-bottom: 40px;">BATTLE
                 SNAKE</div>
 
+            <input type="text" id="playerNameInput" class="menu-input" placeholder="SEU NOME" maxlength="10">
+
             <button class="menu-btn" onclick="startGame('pve')">P v BOT</button>
             <button class="menu-btn" disabled title="Em breve...">P v P (Trancado)</button>
+            <button class="menu-btn" onclick="showRanking()">RANKING</button>
             <button class="menu-btn" onclick="showCredits()">CREDITS</button>
             <div class="controls-hint">Use <b>WASD</b> ou <b>Setas</b> para mover</div>
         </div>
@@ -207,8 +231,21 @@
         <!-- GAME OVER / PAUSE OVERLAY -->
         <div id="overlay" class="hidden">
             <div id="game-msg">GAME OVER</div>
+            <div id="rank-msg" style="font-size: 0.8rem; color: #FFD700; margin-bottom: 20px; min-height: 20px;"></div>
             <button class="menu-btn" onclick="returnToMenu()">MENU PRINCIPAL</button>
             <button class="menu-btn" onclick="startGame('pve')">REVANCHE</button>
+            <button class="menu-btn" onclick="showRanking()">VER RANKING</button>
+        </div>
+
+        <!-- RANKING OVERLAY -->
+        <div id="ranking-overlay" class="hidden" onclick="returnToMenu()"
+            style="position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index: 25; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor: pointer;">
+            <h2 style="color: var(--rank-color); margin-bottom: 30px; text-shadow: 2px 2px 0 #fff;">TOP 10</h2>
+            <div id="ranking-list"
+                style="font-family: 'Press Start 2P'; font-size: 0.8rem; line-height: 2; text-align: center; color: #fff;">
+                <!-- Lista via JS -->
+            </div>
+            <div style="margin-top: 30px; font-size: 0.6rem; color: #777;">CLIQUE PARA VOLTAR</div>
         </div>
 
         <!-- CREDITS OVERLAY -->
@@ -243,7 +280,7 @@
         let startTime;
         let frameCounter = 0;
         let isGameOver = false;
-        let gameState = 'MENU'; // MENU, PLAYING, CREDITS
+        let gameState = 'MENU'; // MENU, PLAYING, CREDITS, RANKING
 
         // Entidades
         let player = {
@@ -302,6 +339,7 @@
 
             document.getElementById('overlay').classList.add('hidden');
             document.getElementById('credits-overlay').classList.add('hidden');
+            document.getElementById('ranking-overlay').classList.add('hidden');
             document.getElementById('ui-layer').style.display = 'none';
 
             clearInterval(gameInterval);
@@ -318,6 +356,7 @@
             document.getElementById('main-menu').style.display = 'none';
             document.getElementById('overlay').classList.add('hidden');
             document.getElementById('credits-overlay').classList.add('hidden');
+            document.getElementById('ranking-overlay').classList.add('hidden');
             document.getElementById('ui-layer').style.display = 'flex';
 
             resetGameInternal();
@@ -464,10 +503,62 @@
         }
 
         /**
-         * INPUT DO JOGADOR
+            // Se a cpu perder os pontos pro player, ela não tem score pra salvar.
+        }
+
+        /**
+         * RANKING SYSTEM
          */
+        function getHighScores() {
+            const scores = localStorage.getItem('snake_high_scores');
+            return scores ? JSON.parse(scores) : [];
+        }
+
+        function saveHighScore(score) {
+            const scores = getHighScores();
+            const date = new Date().toLocaleDateString('pt-BR');
+            // Simplesmente "Jogador" como nome ou pedir input?
+            // Para simplificar e manter fluxo rápido, usaremos "Jogador"
+            // Se quiser input, teria que mudar UI.
+            const newEntry = { name: "PLAYER", score: score, date: date };
+
+            scores.push(newEntry);
+            scores.sort((a, b) => b.score - a.score);
+            scores.splice(10); // Manter top 10
+
+            localStorage.setItem('snake_high_scores', JSON.stringify(scores));
+
+            // Retorna a posição (1-based) ou -1 se não entrou
+            return scores.indexOf(newEntry) + 1;
+        }
+
+        function checkRank(score) {
+            const scores = getHighScores();
+            if (scores.length < 10) return true;
+            return score > scores[scores.length - 1].score;
+        }
+
+        function showRanking() {
+            gameState = 'RANKING';
+            // Montar lista HTML
+            const scores = getHighScores();
+            const listEl = document.getElementById('ranking-list');
+
+            if (scores.length === 0) {
+                listEl.innerHTML = "SEM REGRISTROS AINDA";
+            } else {
+                listEl.innerHTML = scores.map((s, i) =>
+                    `<div>#${i + 1} ${s.name} ... ${s.score}</div>`
+                ).join('');
+            }
+
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('overlay').classList.add('hidden');
+            document.getElementById('ranking-overlay').classList.remove('hidden');
+        }
+
         function handleInput(e) {
-            if (gameState === 'CREDITS') {
+            if (gameState === 'CREDITS' || gameState === 'RANKING') {
                 returnToMenu();
                 return;
             }
@@ -828,12 +919,33 @@
                 color = COLOR_PLAYER;
             }
 
-            // Preparar mensagem
             const titleHtml = `<span style="color:${color}; font-size: 1.5rem; text-shadow: 2px 2px #000;">${winner}</span>`;
             const reasonHtml = `<br><br><span style="font-size:0.8rem; color:#ccc">${reason}</span>`;
 
             const msg = document.getElementById('game-msg'); // Corrected to target 'game-msg'
             msg.innerHTML = titleHtml + reasonHtml;
+
+            // Lógica de Ranking
+            const rankMsg = document.getElementById('rank-msg');
+            let rankText = "";
+            let rank = -1;
+
+            // Salvar apenas se o jogador jogou (não se a CPU ganhou sozinha sem player pontuar?)
+            // Regra: Qualquer jogo conta. Se player fez pontos, tenta ranking.
+            if (player.score > 0) {
+                rank = saveHighScore(player.score);
+            }
+
+            if (rank > 0) {
+                rankText = `NOVO RECORDE! POSIÇÃO #${rank}`;
+                // Auto-mostrar ranking após overlay de game over?
+                // O usuario pediu: "o ranking deve aparecer e o usuario ser informado"
+                // Vamos mostrar msg aqui, e dar opção de ver.
+            } else {
+                rankText = "Tente bater o recorde!";
+            }
+            rankMsg.innerText = rankText;
+
 
             const overlay = document.getElementById('overlay');
             // Se o jogador perdeu, dar delay para mostrar onde morreu
@@ -846,6 +958,9 @@
                     if (deathFrames > 20) { // ~2 segundos (100ms * 20)
                         clearInterval(deathInterval);
                         overlay.classList.remove('hidden');
+                        if (rank > 0) {
+                            // Se bateu recorde, talvez piscar ou algo especial?
+                        }
                     }
                 }, 100);
             } else {
