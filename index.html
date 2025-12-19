@@ -196,6 +196,74 @@
         #credits-overlay button {
             pointer-events: auto;
         }
+
+        /* Mobile Controls */
+        #mobile-controls {
+            display: none;
+            /* Default hidden on desktop */
+            margin-top: 20px;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .d-pad-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .d-btn {
+            width: 60px;
+            height: 60px;
+            background: #333;
+            border: 2px solid #555;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        .d-btn:active {
+            background: var(--accent-color);
+            transform: scale(0.95);
+        }
+
+        @media (max-width: 768px) {
+            body {
+                justify-content: flex-start;
+                padding-top: 20px;
+                height: 100%;
+                overflow: auto;
+            }
+
+            #game-container {
+                width: 90vw;
+                height: 90vw;
+                /* Keep aspect ratio square */
+                max-width: 400px;
+                max-height: 400px;
+            }
+
+            canvas {
+                width: 100% !important;
+                height: 100% !important;
+            }
+
+            #mobile-controls {
+                display: flex;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+                margin-bottom: 10px;
+            }
+        }
     </style>
 </head>
 
@@ -221,8 +289,8 @@
 
             <input type="text" id="playerNameInput" class="menu-input" placeholder="SEU NOME" maxlength="10">
 
-            <button class="menu-btn" onclick="startGame('pve')">P v BOT</button>
-            <button class="menu-btn" disabled title="Em breve...">P v P (Trancado)</button>
+            <button class="menu-btn" onclick="startGame('pve')">START BATTLE</button>
+
             <button class="menu-btn" onclick="showRanking()">RANKING</button>
             <button class="menu-btn" onclick="showCredits()">CREDITS</button>
             <div class="controls-hint">Use <b>WASD</b> ou <b>Setas</b> para mover</div>
@@ -252,6 +320,25 @@
         <div id="credits-overlay" class="hidden" onclick="returnToMenu()"
             style="position:absolute; top:0; left:0; width:100%; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; cursor: pointer;">
             <!-- Canvas will be used for pixel art text -->
+        </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+        <div class="d-pad-row">
+            <div class="d-btn" ontouchstart="handleMobileInput('ArrowUp')" onclick="handleMobileInput('ArrowUp')">▲
+            </div>
+        </div>
+        <div class="d-pad-row">
+            <div class="d-btn" ontouchstart="handleMobileInput('ArrowLeft')" onclick="handleMobileInput('ArrowLeft')">◄
+            </div>
+            <div class="d-btn" style="visibility: hidden;"></div> <!-- Spacer -->
+            <div class="d-btn" ontouchstart="handleMobileInput('ArrowRight')" onclick="handleMobileInput('ArrowRight')">
+                ►</div>
+        </div>
+        <div class="d-pad-row">
+            <div class="d-btn" ontouchstart="handleMobileInput('ArrowDown')" onclick="handleMobileInput('ArrowDown')">▼
+            </div>
         </div>
     </div>
 
@@ -520,6 +607,7 @@
             document.getElementById('timeVal').innerText = "00:00";
         }
 
+
         /**
          * API BACKEND INTEGRATION
          */
@@ -622,6 +710,16 @@
             }
         }
 
+        function handleMobileInput(key) {
+            // Reutilizar a lógica existente simulando um evento
+            // Impedir default se for toque para n dar zoom
+            if (event && event.type === 'touchstart') {
+                event.preventDefault();
+            }
+
+            handleInput({ key: key, preventDefault: () => { } });
+        }
+
         /**
          * LÓGICA DA I.A. (CPU)
          */
@@ -638,49 +736,37 @@
                 { x: 1, y: 0 }   // R
             ];
 
-            // Atualizar percepção do oponente com "lag" (reflexo humano)
-            // A CPU só atualiza onde o player está a cada 3 frames (300ms)
-            // Se o player se mover bruscamente nos intervalos, a CPU não "vê" e bate.
+            // Atualizar percepção do oponente com "lag"
             if (frameCounter % 3 === 0) {
-                // Deep copy simples para não manter referência
                 cpu.perceivedPlayerBody = player.body.map(p => ({ ...p }));
             }
-            // Se perceivedPlayerBody estiver vazio (inicio), preenche
             if (cpu.perceivedPlayerBody.length === 0 && player.body.length > 0) {
                 cpu.perceivedPlayerBody = player.body.map(p => ({ ...p }));
             }
 
-            // 1. Filtrar movimentos suicidas (paredes ou colisão imediata)
-            // Nota: Evitar "pescoço" (voltar para trás) já está coberto pela verificação de colisão com corpo,
-            // mas podemos ser explícitos.
+            // 1. Filtrar movimentos suicidas
             let safeMoves = moves.filter(move => {
                 const nextX = head.x + move.x;
                 const nextY = head.y + move.y;
-
-                // Não pode voltar imediatamente para trás
+                // Não pode voltar
                 if (move.x === -cpu.dir.x && move.y === -cpu.dir.y) return false;
-
                 return isSafeForCPU(nextX, nextY);
             });
 
-            // Se não houver movimentos seguros, manter a direção (e morrer) ou tentar qualquer um
             if (safeMoves.length === 0) return;
 
             // 2. Escolher o movimento que minimiza a distância até a fruta
-            // Ordenar movimentos por distância até a fruta
             safeMoves.sort((a, b) => {
                 const distA = getDistance(head.x + a.x, head.y + a.y, fruit.x, fruit.y);
                 const distB = getDistance(head.x + b.x, head.y + b.y, fruit.x, fruit.y);
                 return distA - distB;
             });
 
-            // Escolher o melhor
             cpu.dir = safeMoves[0];
         }
 
-        // Função de segurança usada pela IA - usa a percepção "atrasada" do player
         function isSafeForCPU(x, y) {
-            // Paredes (Realidade - CPU vê paredes perfeitamente)
+            // Paredes 
             if (x < 0 || x >= GRID_COUNT || y < 0 || y >= GRID_COUNT) return false;
 
             // Colisão com PLAYER (Percepção Atrasada)
@@ -688,7 +774,7 @@
                 if (x === part.x && y === part.y) return false;
             }
 
-            // Colisão com PRÓPRIO CORPO (Realidade - Propriocepção perfeita)
+            // Colisão com PRÓPRIO CORPO 
             for (let i = 0; i < cpu.body.length - 1; i++) {
                 if (x === cpu.body[i].x && y === cpu.body[i].y) return false;
             }
@@ -741,9 +827,7 @@
             // Mover Jogador
             moveSnake(player);
 
-            // Verificar colisões após movimento
-            // Se CPU morreu neste frame (dentro de move -> não, move é move), collisions checa resultados.
-            // Precisamos checar colisão da CPU apenas se ela estiver viva
+            // Verificar colisões
             let cpuCollision = false;
 
             if (!cpu.isDead) {
@@ -785,8 +869,6 @@
             // 1. Paredes
             if (head.x < 0 || head.x >= GRID_COUNT || head.y < 0 || head.y >= GRID_COUNT) {
                 if (snake === cpu) {
-                    // Se CPU bate na parede, ela morre/respawna?
-                    // Mantendo regra original: colisão com parede = perde.
                     gameOver(`${snake.name} bateu na parede!`);
                     return true;
                 }
@@ -820,10 +902,6 @@
             // 3. Auto-colisão
             for (let i = 1; i < snake.body.length; i++) {
                 if (head.x === snake.body[i].x && head.y === snake.body[i].y) {
-                    // Se CPU se enrolar, ela morre e respawna sem dar pontos?
-                    // Vamos considerar Game Over para consistência competitiva, ou respawn?
-                    // "Uma cobra controlada pelo computador... morre... e aparece uma nova"
-                    // Vamos aplicar respawn para CPU se enrolar também para não acabar o jogo cedo.
                     if (snake === cpu) {
                         triggerCpuDeath();
                         return false;
@@ -1014,18 +1092,6 @@
             // Desenhar Grid (opcional, leve)
             ctx.strokeStyle = '#222';
             ctx.lineWidth = 1;
-            /*
-            for (let i = 0; i < gridCount; i++) {
-                ctx.beginPath();
-                ctx.moveTo(i * tileSize, 0);
-                ctx.lineTo(i * tileSize, canvasSize);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(0, i * tileSize);
-                ctx.lineTo(canvasSize, i * tileSize);
-                ctx.stroke();
-            }
-            */
 
             // Desenhar Fruta
             drawRect(fruit.x, fruit.y, COLOR_FRUIT);
