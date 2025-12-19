@@ -4,7 +4,10 @@
 
 > **Nota do Desenvolvedor**: Este projeto é um marco pessoal, sendo o **primeiro jogo que desenvolvi com integração server-side e banco de dados**! 🚀
 
-## 🎮 Funcionalidades Principais
+## � Jogue Agora
+[**🔗 Acessar Snake Battle Online**](https://snakeon.vercel.app/)
+
+## �🎮 Funcionalidades Principais
 
 *   **Modo PvE (Player vs CPU)**: Enfrente uma Inteligência Artificial que joga contra você.
 *   **Condição de Vitória**: O primeiro a atingir **500 pontos** vence a partida!
