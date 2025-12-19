@@ -2,6 +2,8 @@
 
 **Snake Battle** é uma versão moderna e competitiva do clássico jogo da cobrinha, desenvolvida inteiramente em HTML5 e JavaScript puro (Vanilla JS). O foco é uma experiência "Plug & Play", rodando diretamente no navegador sem necessidade de instalação de dependências.
 
+> **Nota do Desenvolvedor**: Este projeto é um marco pessoal, sendo o **primeiro jogo que desenvolvi com integração server-side e banco de dados**! 🚀
+
 ## 🎮 Funcionalidades Principais
 
 *   **Modo PvE (Player vs CPU)**: Enfrente uma Inteligência Artificial que joga contra você.
